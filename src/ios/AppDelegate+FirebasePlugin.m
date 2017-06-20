@@ -98,6 +98,31 @@
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo
     fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler {
 
+    if (application.applicationState == UIApplicationStateBackground &&
+        [self isSilent:userInfo]) {
+        
+        void (^safeHandler)(UIBackgroundFetchResult) = ^(UIBackgroundFetchResult result){
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completionHandler(result);
+            });
+        };
+        
+        FirebasePlugin.firebasePlugin.completionHandler = safeHandler;
+        
+        float finishTimer = 2.0;
+        [NSTimer scheduledTimerWithTimeInterval:finishTimer
+                                         target:self
+                                       selector:@selector(callCompletion)
+                                       userInfo:nil
+                                        repeats:NO];
+        
+        [self sendNotificationWithUserInfo: userInfo];
+    } else {
+        [self sendNotificationWithUserInfo: userInfo];
+    }
+}
+
+- (void)sendNotificationWithUserInfo:(NSDictionary *)userInfo {
     NSDictionary *mutableUserInfo = [userInfo mutableCopy];
     
     [mutableUserInfo setValue:self.applicationInBackground forKey:@"tap"];
@@ -106,6 +131,25 @@
     NSLog(@"%@", mutableUserInfo);
     
     [FirebasePlugin.firebasePlugin sendNotification:mutableUserInfo];
+}
+
+- (void)callCompletion {
+    if (FirebasePlugin.firebasePlugin.completionHandler) {
+        FirebasePlugin.firebasePlugin.completionHandler(UIBackgroundFetchResultNewData);
+        FirebasePlugin.firebasePlugin.completionHandler = nil;
+    }
+}
+
+- (BOOL)isSilent:(NSDictionary *)userInfo {
+    BOOL isSilent = NO;
+    id aps = [userInfo objectForKey:@"aps"];
+    id contentAvailable = [aps objectForKey:@"content-available"];
+    if ([contentAvailable isKindOfClass:[NSString class]] && [contentAvailable isEqualToString:@"1"]) {
+        isSilent = YES;
+    } else if ([contentAvailable isKindOfClass:[NSNumber class]]) {
+        isSilent = [contentAvailable integerValue] == 1;
+    }
+    return isSilent;
 }
 
 #if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0

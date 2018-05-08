@@ -69,18 +69,20 @@ public class FirebasePluginMessagingService extends FirebaseMessagingService {
         String lights = null;
         Map<String, String> data = remoteMessage.getData();
       
+        /* Tim: With old library there is no such call
         if (remoteMessage.getNotification() != null) {
             title = remoteMessage.getNotification().getTitle();
             text = remoteMessage.getNotification().getBody();
             id = remoteMessage.getMessageId();
         } else {
+        */
             title = data.get("title");
             text = data.get("text");
             id = data.get("id");
             sound = data.get("sound");
             lights = data.get("lights"); //String containing hex ARGB color, miliseconds on, miliseconds off, example: '#FFFF00FF,1000,3000'
             if(TextUtils.isEmpty(text)) text = data.get("body");
-        }
+        //}
 
         if(TextUtils.isEmpty(id)){
             Random rand = new Random();
